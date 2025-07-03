@@ -62,7 +62,23 @@ class NativeAppleTranscriptionService: TranscriptionService {
             throw ServiceError.unsupportedOS
         }
         
-        #if canImport(Speech)
+        #if false
+        // Temporarily disabled - macOS 26 APIs not available in current SDK
+        // Only compile this code if we're building for macOS 26+ APIs
+        if #available(macOS 26, *) {
+            return try await performNativeTranscription(audioURL: audioURL)
+        } else {
+            throw ServiceError.unsupportedOS
+        }
+        #else
+        logger.error("Speech framework with macOS 26 APIs is not available")
+        throw ServiceError.unsupportedOS
+        #endif
+    }
+    
+    #if false
+    @available(macOS 26, *)
+    private func performNativeTranscription(audioURL: URL) async throws -> String {
         logger.notice("Starting Apple native transcription with SpeechAnalyzer.")
         
         let audioFile = try AVAudioFile(forReading: audioURL)
@@ -138,27 +154,19 @@ class NativeAppleTranscriptionService: TranscriptionService {
         
         logger.notice("Native transcription successful. Length: \(finalTranscription.count) characters.")
         return finalTranscription
-        
-        #else
-        logger.error("Speech framework is not available")
-        throw ServiceError.unsupportedOS
-        #endif
     }
     
     @available(macOS 26, *)
     private func deallocateExistingAssets() async throws {
-        #if canImport(Speech)
         // Deallocate any existing allocated locales to avoid conflicts
         for locale in await AssetInventory.allocatedLocales {
             await AssetInventory.deallocate(locale: locale)
         }
         logger.notice("Deallocated existing asset locales.")
-        #endif
     }
     
     @available(macOS 26, *)
     private func allocateAssetsForLocale(_ locale: Locale) async throws {
-        #if canImport(Speech)
         do {
             try await AssetInventory.allocate(locale: locale)
             logger.notice("Successfully allocated assets for locale: '\(locale.identifier(.bcp47))'")
@@ -166,12 +174,10 @@ class NativeAppleTranscriptionService: TranscriptionService {
             logger.error("Failed to allocate assets for locale '\(locale.identifier(.bcp47))': \(error.localizedDescription)")
             throw ServiceError.assetAllocationFailed
         }
-        #endif
     }
     
     @available(macOS 26, *)
     private func ensureModelIsAvailable(for transcriber: SpeechTranscriber, locale: Locale) async throws {
-        #if canImport(Speech)
         let installedLocales = await SpeechTranscriber.installedLocales
         let isInstalled = installedLocales.map({ $0.identifier(.bcp47) }).contains(locale.identifier(.bcp47))
 
@@ -186,6 +192,6 @@ class NativeAppleTranscriptionService: TranscriptionService {
                 // Note: We don't throw an error here, as transcription might still work with a base model.
             }
         }
-        #endif
     }
+    #endif
 } 
