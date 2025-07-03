@@ -271,7 +271,7 @@ class AIEnhancementService: ObservableObject {
             } catch {
                 if retryCount < maxRetries {
                     try await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(retryCount)) * 1_000_000_000))
-                    return try await makeRequest(text: text, mode: mode, retryCount: retryCount + 1)
+                    return try await makeRequest(text: text, systemPrompt: systemPrompt, retryCount: retryCount + 1)
                 }
                 throw EnhancementError.networkError
             }
@@ -326,7 +326,7 @@ class AIEnhancementService: ObservableObject {
             } catch {
                 if retryCount < maxRetries {
                     try await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(retryCount)) * 1_000_000_000))
-                    return try await makeRequest(text: text, mode: mode, retryCount: retryCount + 1)
+                    return try await makeRequest(text: text, systemPrompt: systemPrompt, retryCount: retryCount + 1)
                 }
                 throw EnhancementError.networkError
             }
@@ -389,7 +389,7 @@ class AIEnhancementService: ObservableObject {
             } catch {
                 if retryCount < maxRetries {
                     try await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(retryCount)) * 1_000_000_000))
-                    return try await makeRequest(text: text, mode: mode, retryCount: retryCount + 1)
+                    return try await makeRequest(text: text, systemPrompt: systemPrompt, retryCount: retryCount + 1)
                 }
                 throw EnhancementError.networkError
             }
