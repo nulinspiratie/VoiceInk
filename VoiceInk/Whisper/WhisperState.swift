@@ -373,7 +373,7 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
             if case .trialExpired = licenseViewModel.licenseState {
                 text = """
                     Your trial has expired. Upgrade to VoiceInk Pro at tryvoiceink.com/buy
-                    \n\(text)
+                    \(text)
                     """
             }
 
@@ -637,7 +637,7 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
         return enhancementService
     }
     
-    """    func refreshAllAvailableModels() {
+    func refreshAllAvailableModels() {
         let currentModelId = currentTranscriptionModel?.id
         allAvailableModels = PredefinedModels.models
         
@@ -685,7 +685,6 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
             }
         }
     }
-}""
 }
 
 struct WhisperModel: Identifiable {
