@@ -481,6 +481,16 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
             // 1. Transcribe instruction
             let instructionText = try await transcriptionService.transcribe(audioURL: instructionAudio, model: model)
 
+            let systemPrompt = """
+            You are an expert AI assistant. Your task is to modify the user's transcribed text based on the following instruction. The user's text will be provided in the user message.
+
+            <INSTRUCTION>
+            \(instructionText)
+            </INSTRUCTION>
+
+            Your response should ONLY be the modified text. Do not add any conversational filler or explanations.
+            """
+
             // 2. Transcribe main audio
             var mainText = try await transcriptionService.transcribe(audioURL: mainAudio, model: model)
             mainText = mainText.trimmingCharacters(in: .whitespacesAndNewlines)
