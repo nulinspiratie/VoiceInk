@@ -110,7 +110,7 @@ struct NotchRecorderView: View {
                 }
                 .frame(height: menuBarHeight)
                 .frame(maxWidth: windowManager.isVisible ? .infinity : 0)
-                .background(Color.black)
+                .background(whisperState.isRecordingInstruction ? Color.blue.opacity(0.8) : Color.black)
                 .mask {
                     NotchShape(cornerRadius: 10)
                 }

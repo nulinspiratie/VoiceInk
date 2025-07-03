@@ -18,14 +18,25 @@ struct MiniRecorderView: View {
                     .background(
                         ZStack {
                             Color.black.opacity(0.9)
-                            LinearGradient(
-                                colors: [
-                                    Color.black.opacity(0.95),
-                                    Color(red: 0.15, green: 0.15, blue: 0.15).opacity(0.9)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
+                            if whisperState.isRecordingInstruction {
+                                LinearGradient(
+                                    colors: [
+                                        Color.blue.opacity(0.6),
+                                        Color.purple.opacity(0.8)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            } else {
+                                LinearGradient(
+                                    colors: [
+                                        Color.black.opacity(0.95),
+                                        Color(red: 0.15, green: 0.15, blue: 0.15).opacity(0.9)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            }
                             VisualEffectView(material: .hudWindow, blendingMode: .withinWindow)
                                 .opacity(0.05)
                         }

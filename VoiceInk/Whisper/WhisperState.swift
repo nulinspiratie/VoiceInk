@@ -33,6 +33,8 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
     }
     
     @Published var isVisualizerActive = false
+    @Published var isRecordingInstruction = false
+    var mainAudioFile: URL? = nil
     
 
     
@@ -133,7 +135,11 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
             await recorder.stopRecording()
             if let recordedFile {
                 if !shouldCancelRecording {
-                    await transcribeAudio(recordedFile)
+                    if isRecordingInstruction {
+                        await transcribeWithInstruction(instructionAudio: recordedFile, mainAudio: mainAudioFile)
+                    } else {
+                        await transcribeAudio(recordedFile)
+                    }
                 } else {
                     logger.info("🛑 Transcription and paste aborted in toggleRecord due to shouldCancelRecording flag.")
                     await MainActor.run {
@@ -443,6 +449,102 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
         }
     }
 
+    private func transcribeWithInstruction(instructionAudio: URL, mainAudio: URL?) async {
+        guard let mainAudio = mainAudio else {
+            logger.error("❌ Main audio file not found for instruction-based transcription.")
+            return
+        }
+
+        await MainActor.run {
+            isProcessing = true
+            isTranscribing = true
+            canTranscribe = false
+        }
+
+        logger.notice("🔄 Starting transcription with instruction...")
+
+        do {
+            guard let model = currentTranscriptionModel else {
+                throw WhisperStateError.transcriptionFailed
+            }
+
+            let transcriptionService: TranscriptionService
+            switch model.provider {
+            case .local:
+                transcriptionService = localTranscriptionService
+            case .nativeApple:
+                transcriptionService = nativeAppleTranscriptionService
+            default:
+                transcriptionService = cloudTranscriptionService
+            }
+
+            // 1. Transcribe instruction
+            let instructionText = try await transcriptionService.transcribe(audioURL: instructionAudio, model: model)
+
+            // 2. Transcribe main audio
+            var mainText = try await transcriptionService.transcribe(audioURL: mainAudio, model: model)
+            mainText = mainText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            // 3. Enhance with instruction
+            if let enhancementService = enhancementService, enhancementService.isConfigured {
+                do {
+                    let enhancedText = try await enhancementService.enhance(mainText, withSystemPrompt: instructionText)
+                    let permanentURL = try? saveRecordingPermanently(mainAudio)
+                    let newTranscription = Transcription(
+                        text: mainText,
+                        duration: 0, // Duration can be calculated if needed
+                        enhancedText: enhancedText,
+                        audioFileURL: permanentURL?.absoluteString
+                    )
+                    modelContext.insert(newTranscription)
+                    try? modelContext.save()
+                    mainText = enhancedText
+                } catch {
+                    logger.error("❌ AI enhancement with instruction failed: \(error.localizedDescription)")
+                    // Fallback to saving the transcription without enhancement
+                    let permanentURL = try? saveRecordingPermanently(mainAudio)
+                    let newTranscription = Transcription(
+                        text: mainText,
+                        duration: 0,
+                        enhancedText: "Enhancement failed: \(error.localizedDescription)",
+                        audioFileURL: permanentURL?.absoluteString
+                    )
+                    modelContext.insert(newTranscription)
+                    try? modelContext.save()
+                }
+            }
+
+            mainText += " "
+
+            SoundManager.shared.playStopSound()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                CursorPaster.pasteAtCursor(mainText, shouldPreserveClipboard: !self.isAutoCopyEnabled)
+                if self.isAutoCopyEnabled {
+                    ClipboardManager.copyToClipboard(mainText)
+                }
+                if !PasteEligibilityService.isPastePossible() {
+                    TranscriptionFallbackManager.shared.showFallback(for: mainText)
+                }
+            }
+
+            try? FileManager.default.removeItem(at: instructionAudio)
+            try? FileManager.default.removeItem(at: mainAudio)
+
+            await dismissMiniRecorder()
+            await cleanupModelResources()
+
+        } catch {
+            logger.error("❌ Transcription with instruction failed: \(error.localizedDescription)")
+            await cleanupModelResources()
+            await dismissMiniRecorder()
+        }
+
+        await MainActor.run {
+            isRecordingInstruction = false
+            mainAudioFile = nil
+        }
+    }
+
     private func saveRecordingPermanently(_ tempURL: URL) throws -> URL {
         let fileName = "\(UUID().uuidString).wav"
         let permanentURL = recordingsDirectory.appendingPathComponent(fileName)
@@ -535,7 +637,7 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
         return enhancementService
     }
     
-    func refreshAllAvailableModels() {
+    """    func refreshAllAvailableModels() {
         let currentModelId = currentTranscriptionModel?.id
         allAvailableModels = PredefinedModels.models
         
@@ -547,6 +649,43 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
             setDefaultTranscriptionModel(updatedModel)
         }
     }
+
+    func switchToInstructionRecording() async {
+        guard isRecording else { return }
+
+        logger.notice("🎤 Switching to instruction recording...")
+
+        // 1. Stop the current recording
+        await recorder.stopRecording()
+
+        // 2. Store the recorded file
+        self.mainAudioFile = self.recordedFile
+        self.recordedFile = nil
+
+        // 3. Set the state
+        await MainActor.run {
+            self.isRecordingInstruction = true
+        }
+
+        // 4. Start a new recording for the instruction
+        do {
+            let baseAppSupportDirectory = self.recordingsDirectory.deletingLastPathComponent()
+            let instructionFile = baseAppSupportDirectory.appendingPathComponent("instruction.wav")
+            try? FileManager.default.createDirectory(at: baseAppSupportDirectory, withIntermediateDirectories: true)
+            self.recordedFile = instructionFile
+
+            try await self.recorder.startRecording(toOutputFile: instructionFile)
+            logger.notice("✅ Instruction recording started.")
+        } catch {
+            logger.error("❌ Failed to start instruction recording: \(error.localizedDescription)")
+            await MainActor.run {
+                self.isRecordingInstruction = false
+                self.isRecording = false
+                self.isVisualizerActive = false
+            }
+        }
+    }
+}""
 }
 
 struct WhisperModel: Identifiable {

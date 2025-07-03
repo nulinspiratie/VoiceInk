@@ -5,6 +5,7 @@ import AppKit
 extension KeyboardShortcuts.Name {
     static let escapeRecorder = Self("escapeRecorder")
     static let toggleEnhancement = Self("toggleEnhancement")
+    static let addVoiceInstruction = Self("addVoiceInstruction")
     // Power Mode selection shortcuts
     static let selectPowerMode1 = Self("selectPowerMode1")
     static let selectPowerMode2 = Self("selectPowerMode2")
@@ -31,6 +32,7 @@ class MiniRecorderShortcutManager: ObservableObject {
         self.whisperState = whisperState
         setupVisibilityObserver()
         setupEnhancementShortcut()
+        setupVoiceInstructionShortcut()
     }
     
     private func setupVisibilityObserver() {
@@ -170,6 +172,19 @@ class MiniRecorderShortcutManager: ObservableObject {
     private func removeEnhancementShortcut() {
         KeyboardShortcuts.setShortcut(nil, for: .toggleEnhancement)
     }
+
+    private func setupVoiceInstructionShortcut() {
+        KeyboardShortcuts.onKeyDown(for: .addVoiceInstruction) { [weak self] in
+            Task { @MainActor in
+                guard let self = self, await self.whisperState.isRecording else { return }
+                await self.whisperState.switchToInstructionRecording()
+            }
+        }
+    }
+
+    private func removeVoiceInstructionShortcut() {
+        KeyboardShortcuts.setShortcut(nil, for: .addVoiceInstruction)
+    }
     
     deinit {
         visibilityTask?.cancel()
@@ -177,6 +192,7 @@ class MiniRecorderShortcutManager: ObservableObject {
             removeEscapeShortcut()
             removeEnhancementShortcut()
             removePowerModeShortcuts()
+            removeVoiceInstructionShortcut()
         }
     }
 } 

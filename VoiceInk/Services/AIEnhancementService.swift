@@ -167,6 +167,11 @@ class AIEnhancementService: ObservableObject {
     }
     
     private func makeRequest(text: String, mode: EnhancementPrompt, retryCount: Int = 0) async throws -> String {
+        let systemMessage = getSystemMessage(for: mode)
+        return try await makeRequest(text: text, systemPrompt: systemMessage, retryCount: retryCount)
+    }
+
+    private func makeRequest(text: String, systemPrompt: String, retryCount: Int = 0) async throws -> String {
         guard isConfigured else {
             throw EnhancementError.notConfigured
         }
@@ -176,11 +181,10 @@ class AIEnhancementService: ObservableObject {
         }
         
         let formattedText = "\n<TRANSCRIPT>\n\(text)\n</TRANSCRIPT>"
-        let systemMessage = getSystemMessage(for: mode)
         
         if aiService.selectedProvider == .ollama {
             do {
-                let result = try await aiService.enhanceWithOllama(text: formattedText, systemPrompt: systemMessage)
+                let result = try await aiService.enhanceWithOllama(text: formattedText, systemPrompt: systemPrompt)
                 return result
             } catch let error as LocalAIError {
                 switch error {
@@ -220,7 +224,7 @@ class AIEnhancementService: ObservableObject {
                 "contents": [
                     [
                         "parts": [
-                            ["text": systemMessage],
+                            ["text": systemPrompt],
                             ["text": formattedText]
                         ]
                     ]
@@ -276,7 +280,7 @@ class AIEnhancementService: ObservableObject {
             let requestBody: [String: Any] = [
                 "model": aiService.currentModel,
                 "max_tokens": 1024,
-                "system": systemMessage,
+                "system": systemPrompt,
                 "messages": [
                     ["role": "user", "content": formattedText]
                 ]
@@ -336,7 +340,7 @@ class AIEnhancementService: ObservableObject {
             request.timeoutInterval = baseTimeout * pow(2.0, Double(retryCount))
             
             let messages: [[String: Any]] = [
-                ["role": "system", "content": systemMessage],
+                ["role": "system", "content": systemPrompt],
                 ["role": "user", "content": formattedText]
             ]
             
@@ -392,13 +396,18 @@ class AIEnhancementService: ObservableObject {
         }
     }
     
-    func enhance(_ text: String) async throws -> String {
+    func enhance(_ text: String, withSystemPrompt systemPrompt: String? = nil) async throws -> String {
         let enhancementPrompt: EnhancementPrompt = .transcriptionEnhancement
         
         var retryCount = 0
         while retryCount < maxRetries {
             do {
-                let result = try await makeRequest(text: text, mode: enhancementPrompt, retryCount: retryCount)
+                let result: String
+                if let systemPrompt = systemPrompt {
+                    result = try await makeRequest(text: text, systemPrompt: systemPrompt, retryCount: retryCount)
+                } else {
+                    result = try await makeRequest(text: text, mode: enhancementPrompt, retryCount: retryCount)
+                }
                 return result
             } catch let error as EnhancementError {
                 if shouldRetry(error: error, retryCount: retryCount) {

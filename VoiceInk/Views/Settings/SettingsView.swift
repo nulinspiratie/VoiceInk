@@ -97,6 +97,20 @@ struct SettingsView: View {
                     }
                 }
 
+                // Voice Instruction Hotkey
+                SettingsSection(
+                    icon: "waveform.and.mic",
+                    title: "Voice Instruction Hotkey",
+                    subtitle: "Set a hotkey to add a voice instruction while recording"
+                ) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Press this shortcut during a recording to provide a voice instruction for the AI.")
+                            .settingsDescription()
+                        KeyboardShortcuts.Recorder(for: .addVoiceInstruction)
+                            .controlSize(.small)
+                    }
+                }
+
                 // Recorder Preference Section
                 SettingsSection(
                     icon: "rectangle.on.rectangle",
