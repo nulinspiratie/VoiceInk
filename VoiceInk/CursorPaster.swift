@@ -5,10 +5,6 @@ class CursorPaster {
     private static let pasteCompletionDelay: TimeInterval = 0.3
     
     static func pasteAtCursor(_ text: String, shouldPreserveClipboard: Bool = true) {
-        guard AXIsProcessTrusted() else {
-            return
-        }
-        
         let pasteboard = NSPasteboard.general
         
         var savedContents: [(NSPasteboard.PasteboardType, Data)] = []
@@ -45,6 +41,10 @@ class CursorPaster {
     }
     
     private static func pasteUsingAppleScript() -> Bool {
+        guard AXIsProcessTrusted() else {
+            return false
+        }
+        
         let script = """
         tell application "System Events"
             keystroke "v" using command down
@@ -60,6 +60,10 @@ class CursorPaster {
     }
     
     private static func pasteUsingCommandV() {
+        guard AXIsProcessTrusted() else {
+            return
+        }
+        
         let source = CGEventSource(stateID: .hidSystemState)
         
         let cmdDown = CGEvent(keyboardEventSource: source, virtualKey: 0x37, keyDown: true)

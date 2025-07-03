@@ -2,7 +2,6 @@ import SwiftUI
 
 struct AppNotificationView: View {
     let title: String
-    let message: String
     let type: NotificationType
     let duration: TimeInterval
     let onClose: () -> Void
@@ -39,57 +38,70 @@ struct AppNotificationView: View {
     var body: some View {
         ZStack {
             HStack(alignment: .center, spacing: 12) {
-                if let appIcon = NSApp.applicationIconImage {
-                    Image(nsImage: appIcon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 50, height: 50)
-                        .cornerRadius(10)
-                }
+                // Type icon
+                Image(systemName: type.iconName)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(type.iconColor)
+                    .frame(width: 20, height: 20)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .fontWeight(.bold)
-                        .font(.system(size: 13))
-                        .lineLimit(1)
-                    Text(message)
-                        .font(.system(size: 11))
-                        .fontWeight(.semibold)
-                        .opacity(0.9)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                }
+                // Single message text
+                Text(title)
+                    .font(.system(size: 12))
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
                 
                 Spacer()
-            }
-            .padding(12)
-            .frame(height: 60)
-            VStack {
-                HStack {
-                    Spacer()
-                    Button(action: onClose) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .frame(width: 16, height: 16)
+                
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.white.opacity(0.6))
                 }
-                Spacer()
+                .buttonStyle(PlainButtonStyle())
+                .frame(width: 16, height: 16)
             }
-            .padding(8)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
         }
-        .frame(minWidth: 320, maxWidth: 420)
+        .frame(minWidth: 280, maxWidth: 380, minHeight: 44)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.95))
+                .fill(.clear)
+                .background(
+                    ZStack {
+                        // Base dark background
+                        Color.black.opacity(0.9)
+                        
+                        // Subtle gradient overlay
+                        LinearGradient(
+                            colors: [
+                                Color.black.opacity(0.95),
+                                Color(red: 0.15, green: 0.15, blue: 0.15).opacity(0.9)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        
+                        // Very subtle visual effect for depth
+                        VisualEffectView(material: .hudWindow, blendingMode: .withinWindow)
+                            .opacity(0.05)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                )
+        )
+        .overlay(
+            // Subtle inner border
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5)
         )
         .overlay(
             VStack {
                 Spacer()
                 GeometryReader { geometry in
                     Rectangle()
-                        .fill(Color.accentColor.opacity(0.6))
+                        .fill(type.iconColor.opacity(0.8))
                         .frame(width: geometry.size.width * max(0, progress), height: 2)
                         .animation(.linear(duration: 0.1), value: progress)
                 }
@@ -126,3 +138,4 @@ struct AppNotificationView: View {
         }
     }
 }
+

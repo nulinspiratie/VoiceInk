@@ -17,7 +17,8 @@ class AudioTranscriptionService: ObservableObject {
     
     // Transcription services
     private let localTranscriptionService: LocalTranscriptionService
-    private let cloudTranscriptionService = CloudTranscriptionService()
+    private lazy var cloudTranscriptionService = CloudTranscriptionService()
+    private lazy var nativeAppleTranscriptionService = NativeAppleTranscriptionService()
     
     enum TranscriptionError: Error {
         case noAudioFile
@@ -47,11 +48,16 @@ class AudioTranscriptionService: ObservableObject {
             // Delegate transcription to appropriate service
             var text: String
             
-            if model.provider == .local {
+            switch model.provider {
+            case .local:
                 messageLog += "Using local transcription service...\n"
                 text = try await localTranscriptionService.transcribe(audioURL: url, model: model)
                 messageLog += "Local transcription completed.\n"
-            } else {
+            case .nativeApple:
+                messageLog += "Using Native Apple transcription service...\n"
+                text = try await nativeAppleTranscriptionService.transcribe(audioURL: url, model: model)
+                messageLog += "Native Apple transcription completed.\n"
+            default: // Cloud models
                 messageLog += "Using cloud transcription service...\n"
                 text = try await cloudTranscriptionService.transcribe(audioURL: url, model: model)
                 messageLog += "Cloud transcription completed.\n"

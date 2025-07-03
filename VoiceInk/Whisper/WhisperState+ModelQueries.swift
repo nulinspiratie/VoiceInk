@@ -6,6 +6,12 @@ extension WhisperState {
             switch model.provider {
             case .local:
                 return availableModels.contains { $0.name == model.name }
+            case .nativeApple:
+                if #available(macOS 26, *) {
+                    return true
+                } else {
+                    return false
+                }
             case .groq:
                 let key = UserDefaults.standard.string(forKey: "GROQAPIKey")
                 return key != nil && !key!.isEmpty

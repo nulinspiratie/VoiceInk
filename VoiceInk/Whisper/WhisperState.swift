@@ -57,8 +57,9 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
     let modelContext: ModelContext
     
     // Transcription Services
-    private var localTranscriptionService: LocalTranscriptionService
-    private let cloudTranscriptionService = CloudTranscriptionService()
+    private var localTranscriptionService: LocalTranscriptionService!
+    private lazy var cloudTranscriptionService = CloudTranscriptionService()
+    private lazy var nativeAppleTranscriptionService = NativeAppleTranscriptionService()
     
     private var modelUrl: URL? {
         let possibleURLs = [
@@ -97,9 +98,6 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
         
         self.modelsDirectory = appSupportDirectory.appendingPathComponent("WhisperModels")
         self.recordingsDirectory = appSupportDirectory.appendingPathComponent("Recordings")
-        
-        // Initialize services without whisperState reference first
-        self.localTranscriptionService = LocalTranscriptionService(modelsDirectory: self.modelsDirectory)
         
         self.enhancementService = enhancementService
         self.licenseViewModel = LicenseViewModel()
@@ -153,7 +151,6 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
                 await MainActor.run {
                     NotificationManager.shared.showNotification(
                         title: "No AI Model Selected",
-                        message: "Please select a default AI model before recording.",
                         type: .error
                     )
                 }
@@ -294,8 +291,16 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
                 throw WhisperStateError.transcriptionFailed
             }
             
+            let transcriptionService: TranscriptionService
+            switch model.provider {
+            case .local:
+                transcriptionService = localTranscriptionService
+            case .nativeApple:
+                transcriptionService = nativeAppleTranscriptionService
+            default:
+                transcriptionService = cloudTranscriptionService
+            }
 
-            let transcriptionService: TranscriptionService = (model.provider == .local) ? localTranscriptionService : cloudTranscriptionService
             var text = try await transcriptionService.transcribe(audioURL: url, model: model)
             text = text.trimmingCharacters(in: .whitespacesAndNewlines)
             
@@ -331,13 +336,23 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
                     try? modelContext.save()
                     text = enhancedText
                 } catch {
+                    // Enhancement failed - save error in enhancedText field and show notification
                     let newTranscription = Transcription(
                         text: originalText,
                         duration: actualDuration,
+                        enhancedText: "Enhancement failed: \(error.localizedDescription)",
                         audioFileURL: permanentURL?.absoluteString
                     )
                     modelContext.insert(newTranscription)
                     try? modelContext.save()
+                    
+                    // Show notification about enhancement failure
+                    await MainActor.run {
+                        NotificationManager.shared.showNotification(
+                            title: "AI enhancement failed",
+                            type: .error
+                        )
+                    }
                 }
             } else {
                 let newTranscription = Transcription(
@@ -359,9 +374,16 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
             text += " "
 
             SoundManager.shared.playStopSound()
-            if AXIsProcessTrusted() {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    CursorPaster.pasteAtCursor(text, shouldPreserveClipboard: !self.isAutoCopyEnabled)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                
+                CursorPaster.pasteAtCursor(text, shouldPreserveClipboard: !self.isAutoCopyEnabled)
+                
+                if self.isAutoCopyEnabled {
+                    ClipboardManager.copyToClipboard(text)
+                }
+                
+                if !PasteEligibilityService.isPastePossible() {
+                    TranscriptionFallbackManager.shared.showFallback(for: text)
                 }
             }
             try? FileManager.default.removeItem(at: url)
@@ -400,8 +422,7 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
             await MainActor.run {
                 if permanentURL != nil {
                     NotificationManager.shared.showNotification(
-                        title: "Transcription Failed",
-                        message: "🔄 Tap to retry transcription",
+                        title: "Transcription Failed. Tap to retry.",
                         type: .error,
                         onTap: { [weak self] in
                             Task {
@@ -412,7 +433,6 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
                 } else {
                     NotificationManager.shared.showNotification(
                         title: "Recording Failed",
-                        message: "Could not save audio file. Please try recording again.",
                         type: .error
                     )
                 }
@@ -454,14 +474,19 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
             await MainActor.run {
                 NotificationManager.shared.showNotification(
                     title: "Transcription Successful",
-                    message: "✅ Retry completed successfully",
                     type: .success
                 )
                 
                 let textToPaste = newTranscription.enhancedText ?? newTranscription.text
-                if AXIsProcessTrusted() {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        CursorPaster.pasteAtCursor(textToPaste + " ", shouldPreserveClipboard: !self.isAutoCopyEnabled)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    CursorPaster.pasteAtCursor(textToPaste + " ", shouldPreserveClipboard: !self.isAutoCopyEnabled)
+                    
+                    if self.isAutoCopyEnabled {
+                        ClipboardManager.copyToClipboard(textToPaste)
+                    }
+                    
+                    if !PasteEligibilityService.isPastePossible() {
+                        TranscriptionFallbackManager.shared.showFallback(for: textToPaste)
                     }
                 }
             }
@@ -470,7 +495,6 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
             await MainActor.run {
                 NotificationManager.shared.showNotification(
                     title: "Retry Failed",
-                    message: "Transcription failed again. Check your model and settings.",
                     type: .error
                 )
             }

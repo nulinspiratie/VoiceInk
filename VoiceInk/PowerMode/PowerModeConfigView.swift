@@ -5,7 +5,6 @@ struct ConfigurationView: View {
     let powerModeManager: PowerModeManager
     @EnvironmentObject var enhancementService: AIEnhancementService
     @EnvironmentObject var aiService: AIService
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.presentationMode) private var presentationMode
     @FocusState private var isNameFieldFocused: Bool
     
@@ -225,8 +224,7 @@ struct ConfigurationView: View {
                                         Spacer()
                                     }
                                     .padding()
-                                    .background(Color(.windowBackgroundColor).opacity(0.2))
-                                    .cornerRadius(8)
+                                    .background(CardBackground(isSelected: false))
                                 } else {
                                     // Grid of selected apps that wraps to next line
                                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 50, maximum: 55), spacing: 10)], spacing: 10) {
@@ -302,8 +300,7 @@ struct ConfigurationView: View {
                                         Spacer()
                                     }
                                     .padding()
-                                    .background(Color(.windowBackgroundColor).opacity(0.2))
-                                    .cornerRadius(8)
+                                    .background(CardBackground(isSelected: false))
                                 } else {
                                     // Grid of website tags that wraps to next line
                                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 100, maximum: 160), spacing: 10)], spacing: 10) {
@@ -339,10 +336,7 @@ struct ConfigurationView: View {
                             }
                         }
                         .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(.windowBackgroundColor).opacity(0.4))
-                        )
+                        .background(CardBackground(isSelected: false))
                         .padding(.horizontal)
                     }
                     
@@ -358,8 +352,7 @@ struct ConfigurationView: View {
                                 .foregroundColor(.secondary)
                                 .padding()
                                 .frame(maxWidth: .infinity, alignment: .center)
-                                .background(Color(.windowBackgroundColor).opacity(0.2))
-                                .cornerRadius(8)
+                                .background(CardBackground(isSelected: false))
                         } else {
                             // Create a simple binding that uses current model if nil
                             let modelBinding = Binding<String?>(
@@ -380,7 +373,8 @@ struct ConfigurationView: View {
                                     }
                                 }
                                 .labelsHidden()
-                                .frame(maxWidth: .infinity)
+
+                                Spacer()
                             }
                         }
                         
@@ -412,23 +406,18 @@ struct ConfigurationView: View {
                                     }
                                 }
                                 .labelsHidden()
-                                .frame(maxWidth: .infinity)
+
+                                Spacer()
                             }
                         } else if let selectedModel = effectiveModelName,
                                   let modelInfo = whisperState.allAvailableModels.first(where: { $0.name == selectedModel }),
                                   !modelInfo.isMultilingualModel {
                             // Silently set to English without showing UI
-                            EmptyView()
-                                .onAppear {
-                                    selectedLanguage = "en"
-                                }
+                            let _ = { selectedLanguage = "en" }()
                         }
                     }
                     .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(.windowBackgroundColor).opacity(0.4))
-                    )
+                    .background(CardBackground(isSelected: false))
                     .padding(.horizontal)
                     
                     // SECTION 3: AI ENHANCEMENT
@@ -492,7 +481,6 @@ struct ConfigurationView: View {
                                         }
                                     }
                                     .labelsHidden()
-                                    .frame(maxWidth: .infinity)
                                     .onChange(of: selectedAIProvider) { oldValue, newValue in
                                         // When provider changes, ensure we have a valid model for that provider
                                         if let provider = newValue.flatMap({ AIProvider(rawValue: $0) }) {
@@ -500,6 +488,7 @@ struct ConfigurationView: View {
                                             selectedAIModel = provider.defaultModel
                                         }
                                     }
+                                    Spacer()
                                 }
                             }
                             
@@ -513,8 +502,8 @@ struct ConfigurationView: View {
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
                                     
-                                    if provider == .ollama && aiService.availableModels.isEmpty {
-                                        Text("No models available")
+                                    if aiService.availableModels.isEmpty {
+                                        Text(provider == .openRouter ? "No models loaded" : "No models available")
                                             .foregroundColor(.secondary)
                                             .italic()
                                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -535,7 +524,7 @@ struct ConfigurationView: View {
                                             }
                                         )
                                         
-                                        let models = provider == .ollama ? aiService.availableModels : provider.availableModels
+                                        let models = provider == .openRouter ? aiService.availableModels : (provider == .ollama ? aiService.availableModels : provider.availableModels)
                                         
                                         Picker("", selection: modelBinding) {
                                             ForEach(models, id: \.self) { model in
@@ -543,7 +532,20 @@ struct ConfigurationView: View {
                                             }
                                         }
                                         .labelsHidden()
-                                        .frame(maxWidth: .infinity)
+                                        
+                                        if provider == .openRouter {
+                                            Button(action: {
+                                                Task {
+                                                    await aiService.fetchOpenRouterModels()
+                                                }
+                                            }) {
+                                                Image(systemName: "arrow.clockwise")
+                                            }
+                                            .buttonStyle(.borderless)
+                                            .help("Refresh models")
+                                        }
+                                        
+                                        Spacer()
                                     }
                                 }
                             }
@@ -583,10 +585,7 @@ struct ConfigurationView: View {
                         }
                     }
                     .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(.windowBackgroundColor).opacity(0.4))
-                    )
+                    .background(CardBackground(isSelected: false))
                     .padding(.horizontal)
                     
                     // Save Button
@@ -706,21 +705,29 @@ struct ConfigurationView: View {
     
     private func loadInstalledApps() {
         // Get both user-installed and system applications
-        let userAppURLs = FileManager.default.urls(for: .applicationDirectory, in: .localDomainMask)
+        let userAppURLs = FileManager.default.urls(for: .applicationDirectory, in: .userDomainMask)
+        let localAppURLs = FileManager.default.urls(for: .applicationDirectory, in: .localDomainMask)
         let systemAppURLs = FileManager.default.urls(for: .applicationDirectory, in: .systemDomainMask)
-        let allAppURLs = userAppURLs + systemAppURLs
+        let allAppURLs = userAppURLs + localAppURLs + systemAppURLs
         
         let apps = allAppURLs.flatMap { baseURL -> [URL] in
             let enumerator = FileManager.default.enumerator(
                 at: baseURL,
-                includingPropertiesForKeys: [.isApplicationKey],
-                options: [.skipsHiddenFiles, .skipsPackageDescendants]
+                includingPropertiesForKeys: [.isApplicationKey, .isDirectoryKey],
+                options: [.skipsHiddenFiles]
             )
             
             return enumerator?.compactMap { item -> URL? in
-                guard let url = item as? URL,
-                      url.pathExtension == "app" else { return nil }
-                return url
+                guard let url = item as? URL else { return nil }
+                
+                // If it's an app, return it and skip descending into it
+                if url.pathExtension == "app" {
+                    enumerator?.skipDescendants()
+                    return url
+                }
+                
+                // Continue searching in directories
+                return nil
             } ?? []
         }
         
