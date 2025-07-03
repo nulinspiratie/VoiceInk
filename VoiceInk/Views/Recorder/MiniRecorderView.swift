@@ -5,7 +5,10 @@ struct MiniRecorderView: View {
     @ObservedObject var recorder: Recorder
     @EnvironmentObject var windowManager: MiniWindowManager
     @State private var showPowerModePopover = false
+    @State private var showEnhancementPromptPopover = false
     @ObservedObject private var powerModeManager = PowerModeManager.shared
+    
+    @EnvironmentObject private var enhancementService: AIEnhancementService
     
     var body: some View {
         Group {
@@ -14,10 +17,7 @@ struct MiniRecorderView: View {
                     .fill(.clear)
                     .background(
                         ZStack {
-                            // Base dark background
                             Color.black.opacity(0.9)
-                            
-                            // Subtle gradient overlay
                             LinearGradient(
                                 colors: [
                                     Color.black.opacity(0.95),
@@ -26,21 +26,17 @@ struct MiniRecorderView: View {
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
-                            
-                            // Very subtle visual effect for depth
                             VisualEffectView(material: .hudWindow, blendingMode: .withinWindow)
                                 .opacity(0.05)
                         }
                         .clipShape(Capsule())
                     )
                     .overlay {
-                        // Subtle inner border
                         Capsule()
                             .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5)
                     }
                     .overlay {
                         HStack(spacing: 0) {
-                            // Record Button - on the left
                             NotchRecordButton(
                                 isRecording: whisperState.isRecording,
                                 isProcessing: whisperState.isProcessing
@@ -50,7 +46,6 @@ struct MiniRecorderView: View {
                             .frame(width: 24)
                             .padding(.leading, 8)
                             
-                            // Visualizer - centered and expanded
                             Group {
                                 if whisperState.isProcessing {
                                     StaticVisualizer(color: .white)
@@ -65,21 +60,39 @@ struct MiniRecorderView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.horizontal, 8)
                             
-                            // Power Mode Button - on the right
-                            NotchToggleButton(
-                                isEnabled: powerModeManager.isPowerModeEnabled,
-                                icon: powerModeManager.currentActiveConfiguration.emoji,
-                                color: .orange,
-                                disabled: !powerModeManager.isPowerModeEnabled
-                            ) {
-                                if powerModeManager.isPowerModeEnabled {
+                            if powerModeManager.isPowerModeEnabled {
+                                NotchToggleButton(
+                                    isEnabled: powerModeManager.isPowerModeEnabled,
+                                    icon: powerModeManager.currentActiveConfiguration.emoji,
+                                    color: .orange,
+                                    disabled: false
+                                ) {
                                     showPowerModePopover.toggle()
                                 }
-                            }
-                            .frame(width: 24)
-                            .padding(.trailing, 8)
-                            .popover(isPresented: $showPowerModePopover, arrowEdge: .bottom) {
-                                PowerModePopover()
+                                .frame(width: 24)
+                                .padding(.trailing, 8)
+                                .popover(isPresented: $showPowerModePopover, arrowEdge: .bottom) {
+                                    PowerModePopover()
+                                }
+                            } else {
+                                NotchToggleButton(
+                                    isEnabled: enhancementService.isEnhancementEnabled,
+                                    icon: enhancementService.activePrompt?.icon.rawValue ?? "brain",
+                                    color: .blue,
+                                    disabled: false
+                                ) {
+                                    if enhancementService.isEnhancementEnabled {
+                                        showEnhancementPromptPopover.toggle()
+                                    } else {
+                                        enhancementService.isEnhancementEnabled = true
+                                    }
+                                }
+                                .frame(width: 24)
+                                .padding(.trailing, 8)
+                                .popover(isPresented: $showEnhancementPromptPopover, arrowEdge: .bottom) {
+                                    EnhancementPromptPopover()
+                                        .environmentObject(enhancementService)
+                                }
                             }
                         }
                         .padding(.vertical, 8)

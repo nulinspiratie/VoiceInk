@@ -94,7 +94,7 @@ struct LanguageSelectionView: View {
                             .foregroundColor(.secondary)
 
                         Text(
-                            "This model supports multiple languages. You can choose auto-detect or select a specific language."
+                            "This model supports multiple languages. Select a specific language or auto-detect(if available)"
                         )
                         .font(.caption)
                         .foregroundColor(.secondary)

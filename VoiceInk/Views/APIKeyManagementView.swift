@@ -55,16 +55,46 @@ struct APIKeyManagementView: View {
                 }
             }
             
-            // Model Selection - only show for standard providers with available models
-            if !aiService.availableModels.isEmpty && 
-               aiService.selectedProvider != .ollama && 
-               aiService.selectedProvider != .custom {
-                Picker("Model", selection: Binding(
-                    get: { aiService.currentModel },
-                    set: { aiService.selectModel($0) }
-                )) {
-                    ForEach(aiService.availableModels, id: \.self) { model in
-                        Text(model).tag(model)
+            // Model Selection
+            if aiService.selectedProvider == .openRouter {
+                HStack {
+                    if aiService.availableModels.isEmpty {
+                        Text("No models loaded")
+                            .foregroundColor(.secondary)
+                    } else {
+                        Picker("Model", selection: Binding(
+                            get: { aiService.currentModel },
+                            set: { aiService.selectModel($0) }
+                        )) {
+                            ForEach(aiService.availableModels, id: \.self) { model in
+                                Text(model).tag(model)
+                            }
+                        }
+                    }
+                    
+                    
+                    
+                    Button(action: {
+                        Task {
+                            await aiService.fetchOpenRouterModels()
+                        }
+                    }) {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Refresh models")
+                }
+            } else if !aiService.availableModels.isEmpty && 
+                        aiService.selectedProvider != .ollama && 
+                        aiService.selectedProvider != .custom {
+                HStack {
+                    Picker("Model", selection: Binding(
+                        get: { aiService.currentModel },
+                        set: { aiService.selectModel($0) }
+                    )) {
+                        ForEach(aiService.availableModels, id: \.self) { model in
+                            Text(model).tag(model)
+                        }
                     }
                 }
             }
@@ -200,6 +230,7 @@ struct APIKeyManagementView: View {
                 .padding()
                 .background(Color.secondary.opacity(0.03))
                 .cornerRadius(12)
+
             } else if aiService.selectedProvider == .custom {
                 VStack(alignment: .leading, spacing: 16) {
                     // Header
@@ -391,6 +422,8 @@ struct APIKeyManagementView: View {
                                             URL(string: "https://console.deepgram.com/api-keys")!
                                         case .ollama, .custom:
                                             URL(string: "")! // This case should never be reached
+                                        case .openRouter:
+                                            URL(string: "https://openrouter.ai/keys")!
                                         }
                                         NSWorkspace.shared.open(url)
                                     } label: {

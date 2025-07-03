@@ -12,9 +12,8 @@ class NotificationManager {
     @MainActor
     func showNotification(
         title: String,
-        message: String,
         type: AppNotificationView.NotificationType,
-        duration: TimeInterval = 8.0,
+        duration: TimeInterval = 5.0,
         onTap: (() -> Void)? = nil
     ) {
         dismissTimer?.invalidate()
@@ -31,8 +30,7 @@ class NotificationManager {
         }
         
         let notificationView = AppNotificationView(
-            title: title, 
-            message: message, 
+            title: title,
             type: type,
             duration: duration,
             onClose: { [weak self] in
@@ -84,12 +82,18 @@ class NotificationManager {
     private func positionWindow(_ window: NSWindow) {
         let activeScreen = NSApp.keyWindow?.screen ?? NSScreen.main ?? NSScreen.screens[0]
         let screenRect = activeScreen.visibleFrame
-        let windowRect = window.frame
+        let notificationRect = window.frame
         
-        let x = screenRect.maxX - windowRect.width - 20
-        let y = screenRect.maxY - windowRect.height - 20
+        // Position notification centered horizontally on screen
+        let notificationX = screenRect.midX - (notificationRect.width / 2)
         
-        window.setFrameOrigin(NSPoint(x: x, y: y))
+        // Position notification near bottom of screen with appropriate spacing
+        let bottomPadding: CGFloat = 24
+        let componentHeight: CGFloat = 34
+        let notificationSpacing: CGFloat = 16
+        let notificationY = screenRect.minY + bottomPadding + componentHeight + notificationSpacing
+        
+        window.setFrameOrigin(NSPoint(x: notificationX, y: notificationY))
     }
 
     @MainActor

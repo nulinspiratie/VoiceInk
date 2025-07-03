@@ -27,25 +27,97 @@ import Foundation
  }
  
  enum PredefinedModels {
-    static func getLanguageDictionary(isMultilingual: Bool) -> [String: String] {
+    static func getLanguageDictionary(isMultilingual: Bool, provider: ModelProvider = .local) -> [String: String] {
         if !isMultilingual {
             return ["en": "English"]
         } else {
+            // For Apple Native models, return only supported languages in simple format
+            if provider == .nativeApple {
+                let appleSupportedCodes = ["ar", "de", "en", "es", "fr", "it", "ja", "ko", "pt", "yue", "zh"]
+                return allLanguages.filter { appleSupportedCodes.contains($0.key) }
+            }
             return allLanguages
         }
     }
+    
+    // Apple Native Speech specific languages with proper BCP-47 format
+    // Based on actual supported locales from SpeechTranscriber.supportedLocales
+    static let appleNativeLanguages = [
+        // English variants
+        "en-US": "English (United States)",
+        "en-GB": "English (United Kingdom)",
+        "en-CA": "English (Canada)",
+        "en-AU": "English (Australia)",
+        "en-IN": "English (India)",
+        "en-IE": "English (Ireland)",
+        "en-NZ": "English (New Zealand)",
+        "en-ZA": "English (South Africa)",
+        "en-SA": "English (Saudi Arabia)",
+        "en-AE": "English (UAE)",
+        "en-SG": "English (Singapore)",
+        "en-PH": "English (Philippines)",
+        "en-ID": "English (Indonesia)",
+        
+        // Spanish variants
+        "es-ES": "Spanish (Spain)",
+        "es-MX": "Spanish (Mexico)",
+        "es-US": "Spanish (United States)",
+        "es-CO": "Spanish (Colombia)",
+        "es-CL": "Spanish (Chile)",
+        "es-419": "Spanish (Latin America)",
+        
+        // French variants
+        "fr-FR": "French (France)",
+        "fr-CA": "French (Canada)",
+        "fr-BE": "French (Belgium)",
+        "fr-CH": "French (Switzerland)",
+        
+        // German variants
+        "de-DE": "German (Germany)",
+        "de-AT": "German (Austria)",
+        "de-CH": "German (Switzerland)",
+        
+        // Chinese variants
+        "zh-CN": "Chinese Simplified (China)",
+        "zh-TW": "Chinese Traditional (Taiwan)",
+        "zh-HK": "Chinese Traditional (Hong Kong)",
+        
+        // Other Asian languages
+        "ja-JP": "Japanese (Japan)",
+        "ko-KR": "Korean (South Korea)",
+        "yue-CN": "Cantonese (China)",
+        
+        // Portuguese variants
+        "pt-BR": "Portuguese (Brazil)",
+        "pt-PT": "Portuguese (Portugal)",
+        
+        // Italian variants
+        "it-IT": "Italian (Italy)",
+        "it-CH": "Italian (Switzerland)",
+        
+        // Arabic
+        "ar-SA": "Arabic (Saudi Arabia)"
+    ]
     
     static var models: [any TranscriptionModel] {
         return predefinedModels + CustomModelManager.shared.customModels
     }
     
     private static let predefinedModels: [any TranscriptionModel] = [
+        // Native Apple Model
+        NativeAppleModel(
+            name: "apple-speech",
+            displayName: "Apple Speech",
+            description: "Uses the native Apple Speech framework for transcription. Requires macOS 26.",
+            isMultilingualModel: true,
+            supportedLanguages: getLanguageDictionary(isMultilingual: true, provider: .nativeApple)
+        ),
          // Local Models
          LocalModel(
              name: "ggml-tiny",
              displayName: "Tiny",
              size: "75 MiB",
-             supportedLanguages: getLanguageDictionary(isMultilingual: true),
+             supportedLanguages: getLanguageDictionary(isMultilingual: true, provider: .local),
              description: "Tiny model, fastest, least accurate",
              speed: 0.95,
              accuracy: 0.6,
@@ -56,7 +128,7 @@ import Foundation
              name: "ggml-tiny.en",
              displayName: "Tiny (English)",
              size: "75 MiB",
-             supportedLanguages: getLanguageDictionary(isMultilingual: false),
+             supportedLanguages: getLanguageDictionary(isMultilingual: false, provider: .local),
              description: "Tiny model optimized for English, fastest, least accurate",
              speed: 0.95,
              accuracy: 0.65,
@@ -67,7 +139,7 @@ import Foundation
              name: "ggml-base.en",
              displayName: "Base (English)",
              size: "142 MiB",
-             supportedLanguages: getLanguageDictionary(isMultilingual: false),
+             supportedLanguages: getLanguageDictionary(isMultilingual: false, provider: .local),
              description: "Base model optimized for English, good balance between speed and accuracy",
              speed: 0.85,
              accuracy: 0.75,
@@ -78,7 +150,7 @@ import Foundation
              name: "ggml-large-v2",
              displayName: "Large v2",
              size: "2.9 GiB",
-             supportedLanguages: getLanguageDictionary(isMultilingual: true),
+             supportedLanguages: getLanguageDictionary(isMultilingual: true, provider: .local),
              description: "Large model v2, slower than Medium but more accurate",
              speed: 0.3,
              accuracy: 0.96,
@@ -89,7 +161,7 @@ import Foundation
              name: "ggml-large-v3",
              displayName: "Large v3",
              size: "2.9 GiB",
-             supportedLanguages: getLanguageDictionary(isMultilingual: true),
+             supportedLanguages: getLanguageDictionary(isMultilingual: true, provider: .local),
              description: "Large model v3, very slow but most accurate",
              speed: 0.3,
              accuracy: 0.98,
@@ -100,7 +172,7 @@ import Foundation
              name: "ggml-large-v3-turbo",
              displayName: "Large v3 Turbo",
              size: "1.5 GiB",
-             supportedLanguages: getLanguageDictionary(isMultilingual: true),
+             supportedLanguages: getLanguageDictionary(isMultilingual: true, provider: .local),
              description:
              "Large model v3 Turbo, faster than v3 with similar accuracy",
              speed: 0.75,
@@ -112,7 +184,7 @@ import Foundation
              name: "ggml-large-v3-turbo-q5_0",
              displayName: "Large v3 Turbo (Quantized)",
              size: "547 MiB",
-             supportedLanguages: getLanguageDictionary(isMultilingual: true),
+             supportedLanguages: getLanguageDictionary(isMultilingual: true, provider: .local),
              description: "Quantized version of Large v3 Turbo, faster with slightly lower accuracy",
              speed: 0.75,
              accuracy: 0.95,
@@ -124,12 +196,12 @@ import Foundation
         CloudModel(
             name: "whisper-large-v3-turbo",
             displayName: "Whisper Large v3 Turbo (Groq)",
-            description: "Whisper Large v3 Turbo model with Groq'slightning-speed inference",
+            description: "Whisper Large v3 Turbo model with Groq's lightning-speed inference",
             provider: .groq,
             speed: 0.65,
             accuracy: 0.96,
             isMultilingual: true,
-            supportedLanguages: getLanguageDictionary(isMultilingual: true)
+            supportedLanguages: getLanguageDictionary(isMultilingual: true, provider: .groq)
         ),
         CloudModel(
            name: "scribe_v1",
@@ -139,7 +211,7 @@ import Foundation
            speed: 0.7,
            accuracy: 0.98,
            isMultilingual: true,
-           supportedLanguages: getLanguageDictionary(isMultilingual: true)
+           supportedLanguages: getLanguageDictionary(isMultilingual: true, provider: .elevenLabs)
        ),
        CloudModel(
            name: "nova-2",
@@ -149,7 +221,7 @@ import Foundation
            speed: 0.9,
            accuracy: 0.95,
            isMultilingual: true,
-           supportedLanguages: getLanguageDictionary(isMultilingual: true)
+           supportedLanguages: getLanguageDictionary(isMultilingual: true, provider: .deepgram)
        ),
      ]
  

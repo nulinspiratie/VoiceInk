@@ -6,7 +6,10 @@ struct NotchRecorderView: View {
     @EnvironmentObject var windowManager: NotchWindowManager
     @State private var isHovering = false
     @State private var showPowerModePopover = false
+    @State private var showEnhancementPromptPopover = false
     @ObservedObject private var powerModeManager = PowerModeManager.shared
+    
+    @EnvironmentObject private var enhancementService: AIEnhancementService
     
     private var menuBarHeight: CGFloat {
         if let screen = NSScreen.main {
@@ -18,27 +21,21 @@ struct NotchRecorderView: View {
         return NSStatusBar.system.thickness
     }
     
-    // Calculate exact notch width
     private var exactNotchWidth: CGFloat {
         if let screen = NSScreen.main {
-            // On MacBooks with notch, safeAreaInsets.left represents half the notch width
             if screen.safeAreaInsets.left > 0 {
-                // Multiply by 2 because safeAreaInsets.left is half the notch width
                 return screen.safeAreaInsets.left * 2
             }
-            // Fallback for non-notched Macs - use a standard width
             return 200
         }
-        return 200 // Default fallback
+        return 200
     }
     
     var body: some View {
         Group {
             if windowManager.isVisible {
                 HStack(spacing: 0) {
-                    // Left side group with fixed width
                     HStack(spacing: 8) {
-                        // Record Button
                         NotchRecordButton(
                             isRecording: whisperState.isRecording,
                             isProcessing: whisperState.isProcessing
@@ -47,36 +44,51 @@ struct NotchRecorderView: View {
                         }
                         .frame(width: 22)
                         
-                        // Power Mode Button - moved from right side
-                        NotchToggleButton(
-                            isEnabled: powerModeManager.isPowerModeEnabled,
-                            icon: powerModeManager.currentActiveConfiguration.emoji,
-                            color: .orange,
-                            disabled: !powerModeManager.isPowerModeEnabled
-                        ) {
-                            if powerModeManager.isPowerModeEnabled {
+                        if powerModeManager.isPowerModeEnabled {
+                            NotchToggleButton(
+                                isEnabled: powerModeManager.isPowerModeEnabled,
+                                icon: powerModeManager.currentActiveConfiguration.emoji,
+                                color: .orange,
+                                disabled: false
+                            ) {
                                 showPowerModePopover.toggle()
                             }
-                        }
-                        .frame(width: 22)
-                        .popover(isPresented: $showPowerModePopover, arrowEdge: .bottom) {
-                            PowerModePopover()
+                            .frame(width: 22)
+                            .popover(isPresented: $showPowerModePopover, arrowEdge: .bottom) {
+                                PowerModePopover()
+                            }
+                        } else {
+                            NotchToggleButton(
+                                isEnabled: enhancementService.isEnhancementEnabled,
+                                icon: enhancementService.activePrompt?.icon.rawValue ?? "brain",
+                                color: .blue,
+                                disabled: false
+                            ) {
+                                if enhancementService.isEnhancementEnabled {
+                                    showEnhancementPromptPopover.toggle()
+                                } else {
+                                    enhancementService.isEnhancementEnabled = true
+                                }
+                            }
+                            .frame(width: 22)
+                            .popover(isPresented: $showEnhancementPromptPopover, arrowEdge: .bottom) {
+                                EnhancementPromptPopover()
+                                    .environmentObject(enhancementService)
+                            }
                         }
                         
                         Spacer()
                     }
-                    .frame(width: 64) // Increased width for both controls
+                    .frame(width: 64)
                     .padding(.leading, 16)
                     
-                    // Center section with exact notch width
                     Rectangle()
                         .fill(Color.clear)
                         .frame(width: exactNotchWidth)
-                        .contentShape(Rectangle()) // Make the entire area tappable
+                        .contentShape(Rectangle())
                     
-                    // Right side group with visualizer only
                     HStack(spacing: 0) {
-                        Spacer() // Push visualizer to the right
+                        Spacer()
                         
                         Group {
                             if whisperState.isProcessing {
@@ -89,12 +101,11 @@ struct NotchRecorderView: View {
                                 )
                             }
                         }
-                       
                         .scaleEffect(y: min(1.0, (menuBarHeight - 8) / 25), anchor: .center)
                         .frame(width: 30)
-                        .padding(.trailing, 8) // Add padding to keep it away from the edge
+                        .padding(.trailing, 8)
                     }
-                    .frame(width: 64) // Increased width to match left side
+                    .frame(width: 64)
                     .padding(.trailing, 16)
                 }
                 .frame(height: menuBarHeight)
@@ -115,7 +126,6 @@ struct NotchRecorderView: View {
 
 
 
-// New toggle button component matching the notch aesthetic
 struct NotchToggleButton: View {
     let isEnabled: Bool
     let icon: String
@@ -131,11 +141,22 @@ struct NotchToggleButton: View {
         self.action = action
     }
     
+    private var isEmoji: Bool {
+        return !icon.contains(".") && !icon.contains("-") && icon.unicodeScalars.contains { !$0.isASCII }
+    }
+    
     var body: some View {
         Button(action: action) {
-            Text(icon)
-                .font(.system(size: 12))
-                .foregroundColor(disabled ? .white.opacity(0.3) : (isEnabled ? .white : .white.opacity(0.6)))
+            Group {
+                if isEmoji {
+                    Text(icon)
+                        .font(.system(size: 12))
+                } else {
+                    Image(systemName: icon)
+                        .font(.system(size: 11))
+                }
+            }
+            .foregroundColor(disabled ? .white.opacity(0.3) : (isEnabled ? .white : .white.opacity(0.6)))
         }
         .buttonStyle(PlainButtonStyle())
         .disabled(disabled)
@@ -161,12 +182,10 @@ struct NotchRecordButton: View {
                     ProcessingIndicator(color: .white)
                         .frame(width: 14, height: 14)
                 } else if isRecording {
-                    // Show white square for recording state
                     RoundedRectangle(cornerRadius: 3)
                         .fill(Color.white)
                         .frame(width: 8, height: 8)
                 } else {
-                    // Show white circle for idle state
                     Circle()
                         .fill(Color.white)
                         .frame(width: 8, height: 8)
@@ -183,7 +202,6 @@ struct NotchRecordButton: View {
         } else if isRecording {
             return .red
         } else {
-            // Neutral gray for idle state
             return Color(red: 0.3, green: 0.3, blue: 0.35)
         }
     }

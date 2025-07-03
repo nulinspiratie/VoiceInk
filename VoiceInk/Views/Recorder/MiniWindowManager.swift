@@ -57,6 +57,7 @@ class MiniWindowManager: ObservableObject {
         
         let miniRecorderView = MiniRecorderView(whisperState: whisperState, recorder: recorder)
             .environmentObject(self)
+            .environmentObject(whisperState.enhancementService!)
         
         let hostingController = NSHostingController(rootView: miniRecorderView)
         panel.contentView = hostingController.view

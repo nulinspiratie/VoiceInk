@@ -172,7 +172,7 @@ struct AddReplacementSheet: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 12)
-            .background(Color(.windowBackgroundColor).opacity(0.4))
+            .background(CardBackground(isSelected: false))
             
             Divider()
             
@@ -273,12 +273,12 @@ struct AddReplacementSheet: View {
     }
     
     private func addReplacement() {
-        let trimmedOriginal = originalWord.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedReplacement = replacementWord.trimmingCharacters(in: .whitespacesAndNewlines)
+        let original = originalWord
+        let replacement = replacementWord
         
-        guard !trimmedOriginal.isEmpty && !trimmedReplacement.isEmpty else { return }
+        guard !original.isEmpty && !replacement.isEmpty else { return }
         
-        manager.addReplacement(original: trimmedOriginal, replacement: trimmedReplacement)
+        manager.addReplacement(original: original, replacement: replacement)
         dismiss()
     }
 }

@@ -19,7 +19,7 @@ class PromptDetectionService {
     func analyzeText(_ text: String, with enhancementService: AIEnhancementService) -> PromptDetectionResult {
         let originalEnhancementState = enhancementService.isEnhancementEnabled
         let originalPromptId = enhancementService.selectedPromptId
-        
+
         for prompt in enhancementService.allPrompts {
             if !prompt.triggerWords.isEmpty {
                 if let (detectedWord, processedText) = findMatchingTriggerWord(from: text, triggerWords: prompt.triggerWords) {
@@ -34,7 +34,7 @@ class PromptDetectionService {
                 }
             }
         }
-        
+
         return PromptDetectionResult(
             shouldEnableAI: false,
             selectedPromptId: nil,

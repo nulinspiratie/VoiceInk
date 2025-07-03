@@ -176,13 +176,14 @@ struct PermissionCard: View {
             }
         }
         .padding()
-        .background(Color(.windowBackgroundColor).opacity(0.9))
+        .background(CardBackground(isSelected: false))
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.05), radius: 5, y: 2)
     }
 }
 
 struct PermissionsView: View {
+    @EnvironmentObject private var hotkeyManager: HotkeyManager
     @StateObject private var permissionManager = PermissionManager()
     
     var body: some View {
@@ -216,7 +217,7 @@ struct PermissionsView: View {
                         icon: "keyboard",
                         title: "Keyboard Shortcut",
                         description: "Set up a keyboard shortcut to use VoiceInk anywhere",
-                        isGranted: permissionManager.isKeyboardShortcutSet,
+                        isGranted: hotkeyManager.selectedHotkey1 != .none,
                         buttonTitle: "Configure Shortcut",
                         buttonAction: {
                             NotificationCenter.default.post(
