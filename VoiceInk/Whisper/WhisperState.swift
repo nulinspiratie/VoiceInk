@@ -388,8 +388,10 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
                     ClipboardManager.copyToClipboard(text)
                 }
                 
-                if !PasteEligibilityService.isPastePossible() {
-                    TranscriptionFallbackManager.shared.showFallback(for: text)
+                if !PasteEligibilityService.isPastePossible() && (UserDefaults.standard.object(forKey: "isFallbackWindowEnabled") == nil ? true : UserDefaults.standard.bool(forKey: "isFallbackWindowEnabled")) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        TranscriptionFallbackManager.shared.showFallback(for: text)
+                    }
                 }
             }
             try? FileManager.default.removeItem(at: url)
@@ -597,8 +599,10 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
                         ClipboardManager.copyToClipboard(textToPaste)
                     }
                     
-                    if !PasteEligibilityService.isPastePossible() {
-                        TranscriptionFallbackManager.shared.showFallback(for: textToPaste)
+                    if !PasteEligibilityService.isPastePossible() && (UserDefaults.standard.object(forKey: "isFallbackWindowEnabled") == nil ? true : UserDefaults.standard.bool(forKey: "isFallbackWindowEnabled")) {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            TranscriptionFallbackManager.shared.showFallback(for: textToPaste)
+                        }
                     }
                 }
             }
