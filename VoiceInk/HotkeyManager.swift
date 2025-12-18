@@ -414,6 +414,8 @@ class HotkeyManager: ObservableObject {
 
                     if pressDuration >= handsFreeStopSendThreshold {
                         whisperState.requestAutoSendAfterNextPaste()
+                        whisperState.suppressNextStopSoundOnce()
+                        SoundManager.shared.playStopSound()
                     }
                     await whisperState.handleToggleMiniRecorder()
                 }
@@ -515,6 +517,8 @@ class HotkeyManager: ObservableObject {
 
                 if pressDuration >= handsFreeStopSendThreshold {
                     whisperState.requestAutoSendAfterNextPaste()
+                    whisperState.suppressNextStopSoundOnce()
+                    SoundManager.shared.playStopSound()
                 }
                 await whisperState.handleToggleMiniRecorder()
             }

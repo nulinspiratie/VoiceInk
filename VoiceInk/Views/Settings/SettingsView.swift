@@ -66,7 +66,7 @@ struct SettingsView: View {
                             }
                         }
 
-                        Text("Quick tap to start hands-free recording (tap again to stop). Press and hold for push-to-talk (release to stop recording). While recording hands-free, press and hold (~1s) to stop and auto-send (press Enter).")
+                        Text("Quick tap to start hands-free recording (tap again to stop). Press and hold for push-to-talk (release to stop recording). While recording hands-free, press and hold (~0.5s) to stop and auto-send (press Enter).")
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
