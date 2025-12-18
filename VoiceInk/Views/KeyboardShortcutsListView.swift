@@ -8,6 +8,8 @@ struct KeyboardShortcutsListView: View {
     @State private var customCancelShortcut: KeyboardShortcuts.Shortcut?
     @State private var pasteOriginalShortcut: KeyboardShortcuts.Shortcut?
     @State private var pasteEnhancedShortcut: KeyboardShortcuts.Shortcut?
+    @State private var pasteOriginalSendShortcut: KeyboardShortcuts.Shortcut?
+    @State private var pasteEnhancedSendShortcut: KeyboardShortcuts.Shortcut?
     @State private var retryShortcut: KeyboardShortcuts.Shortcut?
     @State private var toggleHotkey1: KeyboardShortcuts.Shortcut?
     @State private var toggleHotkey2: KeyboardShortcuts.Shortcut?
@@ -95,6 +97,19 @@ struct KeyboardShortcutsListView: View {
                             NotSetBadge()
                         }
                     }
+                    
+                    ShortcutCard(
+                        icon: "paperplane.fill",
+                        iconColor: .orange,
+                        title: "Paste & Send Last (Orig.)",
+                        subtitle: "Paste and press Enter"
+                    ) {
+                        if let shortcut = pasteOriginalSendShortcut {
+                            KeyboardShortcutBadge(shortcut: shortcut)
+                        } else {
+                            NotSetBadge()
+                        }
+                    }
 
                     ShortcutCard(
                         icon: "wand.and.stars",
@@ -103,6 +118,19 @@ struct KeyboardShortcutsListView: View {
                         subtitle: "Paste enhanced or original if unavailable"
                     ) {
                         if let shortcut = pasteEnhancedShortcut {
+                            KeyboardShortcutBadge(shortcut: shortcut)
+                        } else {
+                            NotSetBadge()
+                        }
+                    }
+                    
+                    ShortcutCard(
+                        icon: "paperplane.fill",
+                        iconColor: .pink,
+                        title: "Paste & Send Last (Enh.)",
+                        subtitle: "Paste and press Enter"
+                    ) {
+                        if let shortcut = pasteEnhancedSendShortcut {
                             KeyboardShortcutBadge(shortcut: shortcut)
                         } else {
                             NotSetBadge()
@@ -192,6 +220,8 @@ struct KeyboardShortcutsListView: View {
         customCancelShortcut = KeyboardShortcuts.getShortcut(for: .cancelRecorder)
         pasteOriginalShortcut = KeyboardShortcuts.getShortcut(for: .pasteLastTranscription)
         pasteEnhancedShortcut = KeyboardShortcuts.getShortcut(for: .pasteLastEnhancement)
+        pasteOriginalSendShortcut = KeyboardShortcuts.getShortcut(for: .pasteLastTranscriptionAndSend)
+        pasteEnhancedSendShortcut = KeyboardShortcuts.getShortcut(for: .pasteLastEnhancementAndSend)
         retryShortcut = KeyboardShortcuts.getShortcut(for: .retryLastTranscription)
         toggleHotkey1 = KeyboardShortcuts.getShortcut(for: .toggleMiniRecorder)
         toggleHotkey2 = KeyboardShortcuts.getShortcut(for: .toggleMiniRecorder2)

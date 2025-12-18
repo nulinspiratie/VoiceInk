@@ -73,6 +73,27 @@ class LastTranscriptionService: ObservableObject {
         }
     }
     
+    static func pasteLastTranscriptionAndSend(from modelContext: ModelContext) {
+        guard let lastTranscription = getLastTranscription(from: modelContext) else {
+            Task { @MainActor in
+                NotificationManager.shared.showNotification(
+                    title: "No transcription available",
+                    type: .error
+                )
+            }
+            return
+        }
+        
+        let textToPaste = lastTranscription.text
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            CursorPaster.pasteAtCursor(textToPaste)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                CursorPaster.pressEnter()
+            }
+        }
+    }
+
     static func pasteLastEnhancement(from modelContext: ModelContext) {
         guard let lastTranscription = getLastTranscription(from: modelContext) else {
             Task { @MainActor in
@@ -95,6 +116,33 @@ class LastTranscriptionService: ObservableObject {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
             CursorPaster.pasteAtCursor(textToPaste)
+        }
+    }
+    
+    static func pasteLastEnhancementAndSend(from modelContext: ModelContext) {
+        guard let lastTranscription = getLastTranscription(from: modelContext) else {
+            Task { @MainActor in
+                NotificationManager.shared.showNotification(
+                    title: "No transcription available",
+                    type: .error
+                )
+            }
+            return
+        }
+        
+        let textToPaste: String = {
+            if let enhancedText = lastTranscription.enhancedText, !enhancedText.isEmpty {
+                return enhancedText
+            } else {
+                return lastTranscription.text
+            }
+        }()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            CursorPaster.pasteAtCursor(textToPaste)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                CursorPaster.pressEnter()
+            }
         }
     }
     

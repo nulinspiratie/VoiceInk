@@ -54,6 +54,7 @@ extension WhisperState {
         if recordingState == .busy { return }
 
         let wasRecording = recordingState == .recording
+        clearAutoSendAfterNextPasteRequest()
  
         await MainActor.run {
             self.recordingState = .busy

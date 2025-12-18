@@ -66,7 +66,7 @@ struct SettingsView: View {
                             }
                         }
 
-                        Text("Quick tap to start hands-free recording (tap again to stop). Press and hold for push-to-talk (release to stop recording).")
+                        Text("Quick tap to start hands-free recording (tap again to stop). Press and hold for push-to-talk (release to stop recording). While recording hands-free, press and hold (~1s) to stop and auto-send (press Enter).")
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -95,6 +95,23 @@ struct SettingsView: View {
                             
                             Spacer()
                         }
+                        
+                        // Paste + Send Last Transcript (Original)
+                        HStack(spacing: 12) {
+                            Text("Paste & Send Last Transcript(Original)")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.secondary)
+                            
+                            KeyboardShortcuts.Recorder(for: .pasteLastTranscriptionAndSend)
+                                .controlSize(.small)
+                            
+                            InfoTip(
+                                title: "Paste & Send Last Transcript(Original)",
+                                message: "Pastes the most recent transcription and presses Enter."
+                            )
+                            
+                            Spacer()
+                        }
 
                         // Paste Last Transcript (Enhanced)
                         HStack(spacing: 12) {
@@ -108,6 +125,23 @@ struct SettingsView: View {
                             InfoTip(
                                 title: "Paste Last Transcript(Enhanced)",
                                 message: "Pastes the enhanced transcript if available, otherwise falls back to the original."
+                            )
+                            
+                            Spacer()
+                        }
+                        
+                        // Paste + Send Last Transcript (Enhanced)
+                        HStack(spacing: 12) {
+                            Text("Paste & Send Last Transcript(Enhanced)")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.secondary)
+                            
+                            KeyboardShortcuts.Recorder(for: .pasteLastEnhancementAndSend)
+                                .controlSize(.small)
+                            
+                            InfoTip(
+                                title: "Paste & Send Last Transcript(Enhanced)",
+                                message: "Pastes the enhanced transcript if available (or original) and presses Enter."
                             )
                             
                             Spacer()

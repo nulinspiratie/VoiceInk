@@ -27,6 +27,8 @@ class WhisperState: NSObject, ObservableObject {
     @Published var clipboardMessage = ""
     @Published var miniRecorderError: String?
     @Published var shouldCancelRecording = false
+    
+    private var autoSendAfterNextPasteRequest = false
 
 
     @Published var recorderType: String = UserDefaults.standard.string(forKey: "RecorderType") ?? "mini" {
@@ -132,6 +134,20 @@ class WhisperState: NSObject, ObservableObject {
         loadAvailableModels()
         loadCurrentTranscriptionModel()
         refreshAllAvailableModels()
+    }
+    
+    func requestAutoSendAfterNextPaste() {
+        autoSendAfterNextPasteRequest = true
+    }
+    
+    func clearAutoSendAfterNextPasteRequest() {
+        autoSendAfterNextPasteRequest = false
+    }
+    
+    private func consumeAutoSendAfterNextPasteRequest() -> Bool {
+        let requested = autoSendAfterNextPasteRequest
+        autoSendAfterNextPasteRequest = false
+        return requested
     }
     
     private func createRecordingsDirectoryIfNeeded() {
@@ -405,11 +421,13 @@ class WhisperState: NSObject, ObservableObject {
                     """
             }
 
+            let requestedAutoSend = consumeAutoSendAfterNextPasteRequest()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 CursorPaster.pasteAtCursor(textToPaste + " ")
 
                 let powerMode = PowerModeManager.shared
-                if let activeConfig = powerMode.currentActiveConfiguration, activeConfig.isAutoSendEnabled {
+                let isPowerModeAutoSendEnabled = powerMode.currentActiveConfiguration?.isAutoSendEnabled == true
+                if requestedAutoSend || isPowerModeAutoSendEnabled {
                     // Slight delay to ensure the paste operation completes
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                         CursorPaster.pressEnter()
