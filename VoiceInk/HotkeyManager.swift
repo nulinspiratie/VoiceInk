@@ -62,9 +62,11 @@ class HotkeyManager: ObservableObject {
     private var currentKeyState = false
     private var keyPressStartTime: Date?
     private let briefPressThreshold = 1.7
-    private let handsFreeStopSendThreshold = 1.0
+    private let handsFreeStopSendThreshold: TimeInterval = 0.5
     private var isHandsFreeMode = false
     private var isAwaitingHandsFreeStopKeyUp = false
+    private var handsFreeHoldToSendTask: Task<Void, Never>?
+    private var shouldIgnoreNextHandsFreeKeyUp = false
     
     // Debounce for Fn key
     private var fnDebounceTask: Task<Void, Never>?
@@ -75,6 +77,8 @@ class HotkeyManager: ObservableObject {
     private var isShortcutHandsFreeMode = false
     private var shortcutCurrentKeyState = false
     private var isAwaitingShortcutHandsFreeStopKeyUp = false
+    private var shortcutHandsFreeHoldToSendTask: Task<Void, Never>?
+    private var shouldIgnoreNextShortcutHandsFreeKeyUp = false
     private var lastShortcutTriggerTime: Date?
     private let shortcutCooldownInterval: TimeInterval = 0.5
     
@@ -283,10 +287,16 @@ class HotkeyManager: ObservableObject {
         keyPressStartTime = nil
         isHandsFreeMode = false
         isAwaitingHandsFreeStopKeyUp = false
+        handsFreeHoldToSendTask?.cancel()
+        handsFreeHoldToSendTask = nil
+        shouldIgnoreNextHandsFreeKeyUp = false
         shortcutCurrentKeyState = false
         shortcutKeyPressStartTime = nil
         isShortcutHandsFreeMode = false
         isAwaitingShortcutHandsFreeStopKeyUp = false
+        shortcutHandsFreeHoldToSendTask?.cancel()
+        shortcutHandsFreeHoldToSendTask = nil
+        shouldIgnoreNextShortcutHandsFreeKeyUp = false
     }
     
     private func handleModifierKeyEvent(_ event: NSEvent) async {
@@ -347,6 +357,24 @@ class HotkeyManager: ObservableObject {
                whisperState.recordingState == .recording {
                 isHandsFreeMode = false
                 isAwaitingHandsFreeStopKeyUp = true
+                handsFreeHoldToSendTask?.cancel()
+                handsFreeHoldToSendTask = Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    try? await Task.sleep(nanoseconds: UInt64(self.handsFreeStopSendThreshold * 1_000_000_000))
+                    guard !Task.isCancelled else { return }
+                    guard self.currentKeyState, self.isAwaitingHandsFreeStopKeyUp else { return }
+                    guard self.whisperState.isMiniRecorderVisible, self.whisperState.recordingState == .recording else { return }
+                    guard self.canProcessHotkeyAction else { return }
+
+                    self.isAwaitingHandsFreeStopKeyUp = false
+                    self.shouldIgnoreNextHandsFreeKeyUp = true
+                    self.keyPressStartTime = nil
+
+                    self.whisperState.requestAutoSendAfterNextPaste()
+                    self.whisperState.suppressNextStopSoundOnce()
+                    SoundManager.shared.playStopSound()
+                    await self.whisperState.toggleMiniRecorder()
+                }
                 return
             }
 
@@ -364,8 +392,18 @@ class HotkeyManager: ObservableObject {
         } else {
             let now = Date()
 
+            if shouldIgnoreNextHandsFreeKeyUp {
+                shouldIgnoreNextHandsFreeKeyUp = false
+                handsFreeHoldToSendTask?.cancel()
+                handsFreeHoldToSendTask = nil
+                keyPressStartTime = nil
+                return
+            }
+
             if isAwaitingHandsFreeStopKeyUp {
                 isAwaitingHandsFreeStopKeyUp = false
+                handsFreeHoldToSendTask?.cancel()
+                handsFreeHoldToSendTask = nil
 
                 if let startTime = keyPressStartTime {
                     let pressDuration = now.timeIntervalSince(startTime)
@@ -415,6 +453,24 @@ class HotkeyManager: ObservableObject {
            whisperState.recordingState == .recording {
             isShortcutHandsFreeMode = false
             isAwaitingShortcutHandsFreeStopKeyUp = true
+            shortcutHandsFreeHoldToSendTask?.cancel()
+            shortcutHandsFreeHoldToSendTask = Task { @MainActor [weak self] in
+                guard let self else { return }
+                try? await Task.sleep(nanoseconds: UInt64(self.handsFreeStopSendThreshold * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                guard self.shortcutCurrentKeyState, self.isAwaitingShortcutHandsFreeStopKeyUp else { return }
+                guard self.whisperState.isMiniRecorderVisible, self.whisperState.recordingState == .recording else { return }
+                guard self.canProcessHotkeyAction else { return }
+
+                self.isAwaitingShortcutHandsFreeStopKeyUp = false
+                self.shouldIgnoreNextShortcutHandsFreeKeyUp = true
+                self.shortcutKeyPressStartTime = nil
+
+                self.whisperState.requestAutoSendAfterNextPaste()
+                self.whisperState.suppressNextStopSoundOnce()
+                SoundManager.shared.playStopSound()
+                await self.whisperState.toggleMiniRecorder()
+            }
             return
         }
 
@@ -436,9 +492,19 @@ class HotkeyManager: ObservableObject {
         shortcutCurrentKeyState = false
         
         let now = Date()
+
+        if shouldIgnoreNextShortcutHandsFreeKeyUp {
+            shouldIgnoreNextShortcutHandsFreeKeyUp = false
+            shortcutHandsFreeHoldToSendTask?.cancel()
+            shortcutHandsFreeHoldToSendTask = nil
+            shortcutKeyPressStartTime = nil
+            return
+        }
         
         if isAwaitingShortcutHandsFreeStopKeyUp {
             isAwaitingShortcutHandsFreeStopKeyUp = false
+            shortcutHandsFreeHoldToSendTask?.cancel()
+            shortcutHandsFreeHoldToSendTask = nil
 
             if let startTime = shortcutKeyPressStartTime {
                 let pressDuration = now.timeIntervalSince(startTime)

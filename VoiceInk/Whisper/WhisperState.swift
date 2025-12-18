@@ -29,6 +29,7 @@ class WhisperState: NSObject, ObservableObject {
     @Published var shouldCancelRecording = false
     
     private var autoSendAfterNextPasteRequest = false
+    private var suppressNextStopSoundOnceRequest = false
 
 
     @Published var recorderType: String = UserDefaults.standard.string(forKey: "RecorderType") ?? "mini" {
@@ -147,6 +148,16 @@ class WhisperState: NSObject, ObservableObject {
     private func consumeAutoSendAfterNextPasteRequest() -> Bool {
         let requested = autoSendAfterNextPasteRequest
         autoSendAfterNextPasteRequest = false
+        return requested
+    }
+
+    func suppressNextStopSoundOnce() {
+        suppressNextStopSoundOnceRequest = true
+    }
+
+    private func consumeSuppressNextStopSoundOnceRequest() -> Bool {
+        let requested = suppressNextStopSoundOnceRequest
+        suppressNextStopSoundOnceRequest = false
         return requested
     }
     
@@ -286,14 +297,16 @@ class WhisperState: NSObject, ObservableObject {
             recordingState = .transcribing
         }
 
-        // Play stop sound when transcription starts with a small delay
-        Task {
-            let isSystemMuteEnabled = UserDefaults.standard.bool(forKey: "isSystemMuteEnabled")
-            if isSystemMuteEnabled {
-                try? await Task.sleep(nanoseconds: 200_000_000) // 200 milliseconds delay
-            }
-            await MainActor.run {
-                SoundManager.shared.playStopSound()
+        if !consumeSuppressNextStopSoundOnceRequest() {
+            // Play stop sound when transcription starts with a small delay
+            Task {
+                let isSystemMuteEnabled = UserDefaults.standard.bool(forKey: "isSystemMuteEnabled")
+                if isSystemMuteEnabled {
+                    try? await Task.sleep(nanoseconds: 200_000_000) // 200 milliseconds delay
+                }
+                await MainActor.run {
+                    SoundManager.shared.playStopSound()
+                }
             }
         }
 
