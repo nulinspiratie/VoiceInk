@@ -369,6 +369,7 @@ class HotkeyManager: ObservableObject {
                     self.isAwaitingHandsFreeStopKeyUp = false
                     self.shouldIgnoreNextHandsFreeKeyUp = true
                     self.keyPressStartTime = nil
+                    self.handsFreeHoldToSendTask = nil
 
                     self.whisperState.requestAutoSendAfterNextPaste()
                     self.whisperState.suppressNextStopSoundOnce()
@@ -394,7 +395,6 @@ class HotkeyManager: ObservableObject {
 
             if shouldIgnoreNextHandsFreeKeyUp {
                 shouldIgnoreNextHandsFreeKeyUp = false
-                handsFreeHoldToSendTask?.cancel()
                 handsFreeHoldToSendTask = nil
                 keyPressStartTime = nil
                 return
@@ -467,6 +467,7 @@ class HotkeyManager: ObservableObject {
                 self.isAwaitingShortcutHandsFreeStopKeyUp = false
                 self.shouldIgnoreNextShortcutHandsFreeKeyUp = true
                 self.shortcutKeyPressStartTime = nil
+                self.shortcutHandsFreeHoldToSendTask = nil
 
                 self.whisperState.requestAutoSendAfterNextPaste()
                 self.whisperState.suppressNextStopSoundOnce()
@@ -497,7 +498,6 @@ class HotkeyManager: ObservableObject {
 
         if shouldIgnoreNextShortcutHandsFreeKeyUp {
             shouldIgnoreNextShortcutHandsFreeKeyUp = false
-            shortcutHandsFreeHoldToSendTask?.cancel()
             shortcutHandsFreeHoldToSendTask = nil
             shortcutKeyPressStartTime = nil
             return
